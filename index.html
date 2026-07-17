@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>共有Todoリスト</title>
 
+<!-- SortableJS（ドラッグ並び替え用） -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <style>
   body {
     margin: 0;
@@ -218,7 +221,12 @@
     <button id="clearDoneBtn">完了削除</button>
   </div>
 
-  <ul id="todoList"></ul>
+  <!-- 未完了タスク -->
+  <ul id="todoListActive"></ul>
+
+  <!-- 完了タスク -->
+  <ul id="todoListDone"></ul>
+
   <div id="emptyMessage" class="empty">まだTodoがありません</div>
 </div>
 
@@ -254,7 +262,6 @@ let editIndex = null;
 
 const todoInput = document.getElementById("todoInput");
 const addBtn = document.getElementById("addBtn");
-const todoListEl = document.getElementById("todoList");
 const counterEl = document.getElementById("counter");
 const emptyMessageEl = document.getElementById("emptyMessage");
 const clearDoneBtn = document.getElementById("clearDoneBtn");
@@ -272,8 +279,57 @@ function saveTodos() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 }
 
+function createTodoItem(todo, index) {
+  const li = document.createElement("li");
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = todo.done;
+  checkbox.addEventListener("change", () => {
+    todo.done = checkbox.checked;
+    saveTodos();
+    renderTodos();
+  });
+
+  const text = document.createElement("div");
+  text.className = "todo-text";
+  text.textContent = todo.text;
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const editBtn = document.createElement("button");
+  editBtn.textContent = "✏️";
+  editBtn.addEventListener("click", () => {
+    editIndex = index;
+    editInput.value = todo.text;
+    editModal.style.display = "flex";
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.textContent = "🗑️";
+  deleteBtn.addEventListener("click", () => {
+    todos.splice(index, 1);
+    saveTodos();
+    renderTodos();
+  });
+
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+
+  li.appendChild(checkbox);
+  li.appendChild(text);
+  li.appendChild(actions);
+
+  return li;
+}
+
 function renderTodos() {
-  todoListEl.innerHTML = "";
+  const activeEl = document.getElementById("todoListActive");
+  const doneEl = document.getElementById("todoListDone");
+
+  activeEl.innerHTML = "";
+  doneEl.innerHTML = "";
 
   if (todos.length === 0) {
     emptyMessageEl.style.display = "block";
@@ -284,52 +340,39 @@ function renderTodos() {
   emptyMessageEl.style.display = "none";
   counterEl.textContent = `${todos.length} 件`;
 
-  todos.forEach((todo, index) => {
-    const li = document.createElement("li");
-    if (todo.done) li.classList.add("done");
+  // 未完了タスク
+  todos.filter(t => !t.done).forEach((todo, index) => {
+    const li = createTodoItem(todo, index);
+    activeEl.appendChild(li);
+  });
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = todo.done;
-    checkbox.addEventListener("change", () => {
-      todos[index].done = checkbox.checked;
-      saveTodos();
-      renderTodos();
-    });
-
-    const text = document.createElement("div");
-    text.className = "todo-text";
-    text.textContent = todo.text;
-
-    const actions = document.createElement("div");
-    actions.className = "actions";
-
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "✏️";
-    editBtn.addEventListener("click", () => {
-      editIndex = index;
-      editInput.value = todo.text;
-      editModal.style.display = "flex";
-    });
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "🗑️";
-    deleteBtn.addEventListener("click", () => {
-      todos.splice(index, 1);
-      saveTodos();
-      renderTodos();
-    });
-
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
-
-    li.appendChild(checkbox);
-    li.appendChild(text);
-    li.appendChild(actions);
-
-    todoListEl.appendChild(li);
+  // 完了タスク
+  todos.filter(t => t.done).forEach((todo, index) => {
+    const li = createTodoItem(todo, index);
+    li.classList.add("done");
+    doneEl.appendChild(li);
   });
 }
+
+// ドラッグ並び替え（未完了タスクのみ）
+new Sortable(todoListActive, {
+  animation: 150,
+  onEnd: () => {
+    const newOrder = [];
+    const items = todoListActive.querySelectorAll("li");
+
+    items.forEach(li => {
+      const text = li.querySelector(".todo-text").textContent;
+      const original = todos.find(t => t.text === text && !t.done);
+      newOrder.push(original);
+    });
+
+    const doneItems = todos.filter(t => t.done);
+    todos = [...newOrder, ...doneItems];
+
+    saveTodos();
+  }
+});
 
 function addTodo() {
   const text = todoInput.value.trim();
