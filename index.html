@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>共有Todoリスト</title>
+<title>Todoリスト</title>
 
 <!-- SortableJS（ドラッグ並び替え用） -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -149,6 +149,13 @@
     cursor: pointer;
   }
 
+  .drag-area {
+    font-size: 1.4rem;
+    cursor: grab;
+    padding-right: 10px;
+    user-select: none;
+  }
+
   .empty {
     text-align: center;
     color: #999;
@@ -195,7 +202,7 @@
 
 <body>
 <div class="app">
-  <div class="header">共有Todoリスト</div>
+  <div class="header">Todoリスト</div>
 
   <div class="title-area">
     <input id="titleInput" type="text" placeholder="リスト名を入力（例：家族・仕事・買い物）" />
@@ -248,17 +255,7 @@ document.getElementById("createListBtn").addEventListener("click", () => {
 });
 
 let todos = [];
-let editIndex = null;
-
-const todoInput = document.getElementById("todoInput");
-const addBtn = document.getElementById("addBtn");
-const counterEl = document.getElementById("counter");
-const emptyMessageEl = document.getElementById("emptyMessage");
-const clearDoneBtn = document.getElementById("clearDoneBtn");
-
-const editModal = document.getElementById("editModal");
-const editInput = document.getElementById("editInput");
-const saveEditBtn = document.getElementById("saveEditBtn");
+let editId = null;
 
 function loadTodos() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -272,6 +269,10 @@ function saveTodos() {
 function createTodoItem(todo) {
   const li = document.createElement("li");
   li.dataset.id = todo.id;
+
+  const dragArea = document.createElement("div");
+  dragArea.className = "drag-area";
+  dragArea.textContent = "☰";
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -292,7 +293,7 @@ function createTodoItem(todo) {
   const editBtn = document.createElement("button");
   editBtn.textContent = "✏️";
   editBtn.addEventListener("click", () => {
-    editIndex = todo.id;
+    editId = todo.id;
     editInput.value = todo.text;
     editModal.style.display = "flex";
   });
@@ -308,6 +309,7 @@ function createTodoItem(todo) {
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
 
+  li.appendChild(dragArea);
   li.appendChild(checkbox);
   li.appendChild(text);
   li.appendChild(actions);
@@ -345,6 +347,7 @@ function renderTodos() {
 // ドラッグ並び替え（未完了タスクのみ）
 new Sortable(todoListActive, {
   animation: 150,
+  handle: ".drag-area",
   onEnd: () => {
     const newOrder = [];
     const items = todoListActive.querySelectorAll("li");
@@ -392,7 +395,7 @@ saveEditBtn.addEventListener("click", () => {
   const newText = editInput.value.trim();
   if (!newText) return;
 
-  const target = todos.find(t => t.id === editIndex);
+  const target = todos.find(t => t.id === editId);
   target.text = newText;
 
   saveTodos();
