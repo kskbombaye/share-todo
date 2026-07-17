@@ -257,6 +257,9 @@ document.getElementById("createListBtn").addEventListener("click", () => {
 let todos = [];
 let editId = null;
 
+const todoInput = document.getElementById("todoInput");
+const addBtn = document.getElementById("addBtn");
+  
 function loadTodos() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) todos = JSON.parse(raw);
