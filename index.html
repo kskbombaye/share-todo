@@ -34,7 +34,6 @@
     text-align: center;
   }
 
-  /* タイトル入力UI */
   .title-area {
     display: flex;
     gap: 8px;
@@ -59,7 +58,6 @@
     cursor: pointer;
   }
 
-  /* URLタイトル表示 */
   .list-title {
     font-size: 1.1rem;
     font-weight: 600;
@@ -157,7 +155,6 @@
     margin-top: 20px;
   }
 
-  /* 編集モーダル */
   .modal {
     position: fixed;
     inset: 0;
@@ -200,13 +197,11 @@
 <div class="app">
   <div class="header">Todoリスト</div>
 
-  <!-- タイトル入力UI -->
   <div class="title-area">
     <input id="titleInput" type="text" placeholder="リスト名を入力（例：家族・仕事・買い物）" />
     <button id="createListBtn">リストを作成</button>
   </div>
 
-  <!-- URLタイトル表示 -->
   <div id="listTitle" class="list-title"></div>
 
   <div class="input-area">
@@ -221,16 +216,12 @@
     <button id="clearDoneBtn">完了削除</button>
   </div>
 
-  <!-- 未完了タスク -->
   <ul id="todoListActive"></ul>
-
-  <!-- 完了タスク -->
   <ul id="todoListDone"></ul>
 
   <div id="emptyMessage" class="empty">まだTodoがありません</div>
 </div>
 
-<!-- 編集モーダル -->
 <div id="editModal" class="modal">
   <div class="modal-box">
     <input id="editInput" type="text" />
@@ -245,14 +236,13 @@ const listID = params.get("list") || "default";
 const STORAGE_KEY = "todo_list_" + listID;
 
 // URLタイトル表示
-const listTitleEl = document.getElementById("listTitle");
-listTitleEl.textContent = listID === "default" ? "デフォルトリスト" : listID;
+document.getElementById("listTitle").textContent =
+  listID === "default" ? "デフォルトリスト" : listID;
 
 // タイトル入力 → URL生成
 document.getElementById("createListBtn").addEventListener("click", () => {
   const title = document.getElementById("titleInput").value.trim();
   if (!title) return;
-
   const id = encodeURIComponent(title.toLowerCase());
   window.location.href = `?list=${id}`;
 });
@@ -279,8 +269,9 @@ function saveTodos() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 }
 
-function createTodoItem(todo, index) {
+function createTodoItem(todo) {
   const li = document.createElement("li");
+  li.dataset.id = todo.id;
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -301,7 +292,7 @@ function createTodoItem(todo, index) {
   const editBtn = document.createElement("button");
   editBtn.textContent = "✏️";
   editBtn.addEventListener("click", () => {
-    editIndex = index;
+    editIndex = todo.id;
     editInput.value = todo.text;
     editModal.style.display = "flex";
   });
@@ -309,7 +300,7 @@ function createTodoItem(todo, index) {
   const deleteBtn = document.createElement("button");
   deleteBtn.textContent = "🗑️";
   deleteBtn.addEventListener("click", () => {
-    todos.splice(index, 1);
+    todos = todos.filter(t => t.id !== todo.id);
     saveTodos();
     renderTodos();
   });
@@ -340,15 +331,12 @@ function renderTodos() {
   emptyMessageEl.style.display = "none";
   counterEl.textContent = `${todos.length} 件`;
 
-  // 未完了タスク
-  todos.filter(t => !t.done).forEach((todo, index) => {
-    const li = createTodoItem(todo, index);
-    activeEl.appendChild(li);
+  todos.filter(t => !t.done).forEach(todo => {
+    activeEl.appendChild(createTodoItem(todo));
   });
 
-  // 完了タスク
-  todos.filter(t => t.done).forEach((todo, index) => {
-    const li = createTodoItem(todo, index);
+  todos.filter(t => t.done).forEach(todo => {
+    const li = createTodoItem(todo);
     li.classList.add("done");
     doneEl.appendChild(li);
   });
@@ -362,8 +350,8 @@ new Sortable(todoListActive, {
     const items = todoListActive.querySelectorAll("li");
 
     items.forEach(li => {
-      const text = li.querySelector(".todo-text").textContent;
-      const original = todos.find(t => t.text === text && !t.done);
+      const id = Number(li.dataset.id);
+      const original = todos.find(t => t.id === id);
       newOrder.push(original);
     });
 
@@ -377,7 +365,13 @@ new Sortable(todoListActive, {
 function addTodo() {
   const text = todoInput.value.trim();
   if (!text) return;
-  todos.push({ text, done: false });
+
+  todos.push({
+    id: Date.now(),
+    text,
+    done: false
+  });
+
   todoInput.value = "";
   saveTodos();
   renderTodos();
@@ -397,7 +391,10 @@ clearDoneBtn.addEventListener("click", () => {
 saveEditBtn.addEventListener("click", () => {
   const newText = editInput.value.trim();
   if (!newText) return;
-  todos[editIndex].text = newText;
+
+  const target = todos.find(t => t.id === editIndex);
+  target.text = newText;
+
   saveTodos();
   renderTodos();
   editModal.style.display = "none";
