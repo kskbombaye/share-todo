@@ -259,8 +259,13 @@ let editId = null;
 
 const todoInput = document.getElementById("todoInput");
 const addBtn = document.getElementById("addBtn");
-  
+
+// ★ ここに追加する
+const clearDoneBtn = document.getElementById("clearDoneBtn");
+const editInput = document.getElementById("editInput");
+const editModal = document.getElementById("editModal");
 function loadTodos() {
+  
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) todos = JSON.parse(raw);
 }
