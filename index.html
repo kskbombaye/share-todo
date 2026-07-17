@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>シンプル共有Todoリスト</title>
+
+  <!-- GitHub Pages 用：1ファイル完結版 -->
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      display: flex;
+      justify-content: center;
+    }
+    .app {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .app-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    .share-info {
+      font-size: 0.75rem;
+      color: #777;
+      text-align: right;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .input-row input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+    }
+    .input-row button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: #007aff;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .input-row button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 0.8rem;
+      color: #555;
+    }
+    .list-header button {
+      border: none;
+      background: transparent;
+      color: #d00;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #eee;
+      margin-bottom: 6px;
+      background: #fafafa;
+      font-size: 0.9rem;
+    }
+    .todo-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .todo-main input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    .todo-text {
+      flex: 1;
+      word-break: break-word;
+    }
+    .todo-text.done {
+      text-decoration: line-through;
+      color: #999;
+    }
+    .todo-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 8px;
+    }
+    .todo-actions button {
+      border: none;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .btn-delete {
+      background: #ff3b30;
+      color: #fff;
+    }
+    .btn-edit {
+      background: #ffcc00;
+      color: #333;
+    }
+    .empty {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 12px;
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 0.7rem;
+      color: #aaa;
+      text-align: center;
+    }
+    .share-url {
+      width: 100%;
+      margin-top: 6px;
+      font-size: 0.7rem;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="app-title">シンプル共有Todoリスト</div>
+    </header>
+
+    <div class="share-info">
+      このページURLを共有すると、同じブラウザで同じリストを使えます（ローカル保存）
+    </div>
+
+    <div class="input-row">
+      <input
+        id="todoInput"
+        type="text"
+        placeholder="やることを入力して Enter または追加"
+      />
+      <button id="addBtn" type="button">追加</button>
+    </div>
+
+    <div class="list-header">
+      <span id="counter">0 件</span>
+      <button id="clearDoneBtn" type="button">完了を一括削除</button>
+    </div>
+
+    <ul id="todoList"></ul>
+    <div id="emptyMessage" class="empty">まだTodoがありません</div>
+
+    <div class="footer">
+      ローカルストレージに保存されます。GitHub Pages にそのまま置けます。
+      <input
+        id="shareUrl"
+        class="share-url"
+        type="text"
+        readonly
+        value=""
+      />
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "simple_shared_todo_list_v1";
+
+    const todoInput = document.getElementById("todoInput");
+    const addBtn = document.getElementById("addBtn");
+    const todoListEl = document.getElementById("todoList");
+    const counterEl = document.getElementById("counter");
+    const emptyMessageEl = document.getElementById("emptyMessage");
+    const clearDoneBtn = document.getElementById("clearDoneBtn");
+    const shareUrlInput = document.getElementById("shareUrl");
+
+    let todos = [];
+
+    function loadTodos() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          todos = parsed;
+        }
+      } catch (e) {
+        console.warn("Failed to load todos", e);
+      }
+    }
+
+    function saveTodos() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      } catch (e) {
+        console.warn("Failed to save todos", e);
+      }
+    }
+
+    function renderTodos() {
+      todoListEl.innerHTML = "";
+
+      if (todos.length === 0) {
+        emptyMessageEl.style.display = "block";
+        counterEl.textContent = "0 件";
+        return;
+      }
+
+      emptyMessageEl.style.display = "none";
+      counterEl.textContent = `${todos.length} 件`;
+
+      todos.forEach((todo, index) => {
+        const li = document.createElement("li");
+
+        const main = document.createElement("div");
+        main.className = "todo-main";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = !!todo.done;
+        checkbox.addEventListener("change", () => {
+          todos[index].done = checkbox.checked;
+          saveTodos();
+          renderTodos();
+        });
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "todo-text" + (todo.done ? " done" : "");
+        textSpan.textContent = todo.text;
+
+        main.appendChild(checkbox);
+        main.appendChild(textSpan);
+
+        const actions = document.createElement("div");
+        actions.className = "todo-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn-edit";
+        editBtn.textContent = "編集";
+        editBtn.addEventListener("click", () => {
+          const newText = prompt("内容を編集", todo.text);
+          if (newText === null) return;
+          const trimmed = newText.trim();
+          if (!trimmed) return;
+          todos[index].text = trimmed;
+          saveTodos();
+          renderTodos();
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn-delete";
+        deleteBtn.textContent = "削除";
+        deleteBtn.addEventListener("click", () => {
+          if (!confirm("このTodoを削除しますか？")) return;
+          todos.splice(index, 1);
+          saveTodos();
+          renderTodos();
+        });
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(main);
+        li.appendChild(actions);
+
+        todoListEl.appendChild(li);
+      });
+    }
+
+    function addTodo() {
+      const text = todoInput.value.trim();
+      if (!text) return;
+      todos.push({ text, done: false });
+      todoInput.value = "";
+      saveTodos();
+      renderTodos();
+    }
+
+    addBtn.addEventListener("click", addTodo);
+
+    todoInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addTodo();
+      }
+    });
+
+    clearDoneBtn.addEventListener("click", () => {
+      if (!todos.some((t) => t.done)) return;
+      if (!confirm("完了済みのTodoをすべて削除しますか？")) return;
+      todos = todos.filter((t) => !t.done);
+      saveTodos();
+      renderTodos();
+    });
+
+    function initShareUrl() {
+      shareUrlInput.value = window.location.href;
+      shareUrlInput.addEventListener("click", () => {
+        shareUrlInput.select();
+      });
+    }
+
+    // 初期化
+    loadTodos();
+    renderTodos();
+    initShareUrl();
+  </script>
+</body>
+</html>
